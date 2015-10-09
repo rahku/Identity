@@ -12,6 +12,7 @@ using Microsoft.AspNet.Http.Authentication;
 using Microsoft.AspNet.Http.Features.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.OptionsModel;
+using Microsoft.Extensions.Logging.Internal;
 
 namespace Microsoft.AspNet.Identity
 {
@@ -36,7 +37,7 @@ namespace Microsoft.AspNet.Identity
             IHttpContextAccessor contextAccessor,
             IUserClaimsPrincipalFactory<TUser> claimsFactory,
             IOptions<IdentityOptions> optionsAccessor,
-            ILogger<SignInManager<TUser>> logger)
+            Logger<SignInManager<TUser>> logger)
         {
             if (userManager == null)
             {
@@ -64,7 +65,7 @@ namespace Microsoft.AspNet.Identity
         /// <value>
         /// The <see cref="ILogger"/> used to log messages from the manager.
         /// </value>
-        protected internal virtual ILogger Logger { get; set; }
+        protected internal virtual Logger<SignInManager<TUser>> Logger { get; set; }
         protected internal UserManager<TUser> UserManager { get; set; }
         internal HttpContext Context { get; set; }
         internal IUserClaimsPrincipalFactory<TUser> ClaimsFactory { get; set; }
@@ -89,12 +90,14 @@ namespace Microsoft.AspNet.Identity
         {
             if (Options.SignIn.RequireConfirmedEmail && !(await UserManager.IsEmailConfirmedAsync(user)))
             {
-                Logger.LogWarning("User {userId} cannot sign in without a confirmed email.", await UserManager.GetUserIdAsync(user));
+                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "MissingEmail", new { userId = await UserManager.GetUserIdAsync(user) });
+                //Logger.LogWarning("User {userId} cannot sign in without a confirmed email.", await UserManager.GetUserIdAsync(user));
                 return false;
             }
             if (Options.SignIn.RequireConfirmedPhoneNumber && !(await UserManager.IsPhoneNumberConfirmedAsync(user)))
             {
-                Logger.LogWarning("User {userId} cannot sign in without a confirmed phone number.", await UserManager.GetUserIdAsync(user));
+                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "MissingPhone", new { userId = await UserManager.GetUserIdAsync(user) });
+                //Logger.LogWarning("User {userId} cannot sign in without a confirmed phone number.", await UserManager.GetUserIdAsync(user));
                 return false;
             }
 
@@ -212,7 +215,8 @@ namespace Microsoft.AspNet.Identity
                 await ResetLockout(user);
                 return await SignInOrTwoFactorAsync(user, isPersistent);
             }
-            Logger.LogWarning("User {userId} failed to provide the correct password.", await UserManager.GetUserIdAsync(user));
+            Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "PasswordMismatch", new { userId = await UserManager.GetUserIdAsync(user) });
+            //Logger.LogWarning("User {userId} failed to provide the correct password.", await UserManager.GetUserIdAsync(user));
 
             if (UserManager.SupportsUserLockout && lockoutOnFailure)
             {
@@ -522,7 +526,8 @@ namespace Microsoft.AspNet.Identity
 
         private async Task<SignInResult> LockedOut(TUser user)
         {
-            Logger.LogWarning("User {userId} is currently locked out.", await UserManager.GetUserIdAsync(user));
+            Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "LockedUser", new { userId = await UserManager.GetUserIdAsync(user) });
+            //Logger.LogWarning("User {userId} is currently locked out.", await UserManager.GetUserIdAsync(user));
             return SignInResult.LockedOut;
         }
 

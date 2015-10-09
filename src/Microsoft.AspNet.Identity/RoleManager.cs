@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNet.Hosting;
 using Microsoft.AspNet.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Internal;
 
 namespace Microsoft.AspNet.Identity
 {
@@ -37,7 +38,7 @@ namespace Microsoft.AspNet.Identity
             IEnumerable<IRoleValidator<TRole>> roleValidators,
             ILookupNormalizer keyNormalizer,
             IdentityErrorDescriber errors,
-            ILogger<RoleManager<TRole>> logger,
+            Logger<RoleManager<TRole>> logger,
             IHttpContextAccessor contextAccessor)
         {
             if (store == null)
@@ -71,7 +72,7 @@ namespace Microsoft.AspNet.Identity
         /// <value>
         /// The <see cref="ILogger"/> used to log messages from the manager.
         /// </value>
-        protected internal virtual ILogger Logger { get; set; }
+        protected internal virtual Logger<RoleManager<TRole>> Logger { get; set; }
 
         /// <summary>
         /// Gets a list of validators for roles to call before persistence.
@@ -430,7 +431,8 @@ namespace Microsoft.AspNet.Identity
             }
             if (errors.Count > 0)
             {
-                Logger.LogWarning("Role {roleId} validation failed: {errors}.", await GetRoleIdAsync(role), string.Join(";", errors.Select(e => e.Code)));
+                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "RoleValidationFailure", new { roleId = await GetRoleIdAsync(role), errors = string.Join(";", errors.Select(e => e.Code)) });
+                //Logger.LogWarning("Role {roleId} validation failed: {errors}.", await GetRoleIdAsync(role), string.Join(";", errors.Select(e => e.Code)));
                 return IdentityResult.Failed(errors.ToArray());
             }
             return IdentityResult.Success;
