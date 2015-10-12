@@ -13,7 +13,7 @@ using Microsoft.AspNet.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.OptionsModel;
-using Microsoft.Extensions.Logging.Internal;
+using System.Diagnostics.Tracing;
 
 namespace Microsoft.AspNet.Identity
 {
@@ -55,7 +55,7 @@ namespace Microsoft.AspNet.Identity
             ILookupNormalizer keyNormalizer,
             IdentityErrorDescriber errors,
             IServiceProvider services,
-            Logger<UserManager<TUser>> logger,
+            ILogger<UserManager<TUser>> logger,
             IHttpContextAccessor contextAccessor)
         {
             if (store == null)
@@ -110,7 +110,7 @@ namespace Microsoft.AspNet.Identity
         /// <value>
         /// The <see cref="ILogger"/> used to log messages from the manager.
         /// </value>
-        protected internal virtual Logger<UserManager<TUser>> Logger { get; set; }
+        protected internal virtual ILogger Logger { get; set; }
 
         internal IPasswordHasher<TUser> PasswordHasher { get; set; }
 
@@ -537,8 +537,7 @@ namespace Microsoft.AspNet.Identity
             var success = result != PasswordVerificationResult.Failed;
             if (!success)
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "PasswordMismatch", new { userId = await GetUserIdAsync(user) });
-                //Logger.LogWarning("Invalid password for user {userId}.", await GetUserIdAsync(user));
+                Logger.Log("PasswordMismatch", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
             }
             return success;
         }
@@ -585,8 +584,7 @@ namespace Microsoft.AspNet.Identity
             var hash = await passwordStore.GetPasswordHashAsync(user, CancellationToken);
             if (hash != null)
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "UserAlreadyHasPassword", new { userId = await GetUserIdAsync(user) });
-                //Logger.LogWarning("User {userId} already has a password.", await GetUserIdAsync(user));
+                Logger.Log("UserAlreadyHasPassword", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
                 return IdentityResult.Failed(ErrorDescriber.UserAlreadyHasPassword());
             }
             var result = await UpdatePasswordHash(passwordStore, user, password);
@@ -627,8 +625,7 @@ namespace Microsoft.AspNet.Identity
                 }
                 return await UpdateUserAsync(user);
             }
-            Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "PasswordMismatch", new { userId = await GetUserIdAsync(user) });
-            //Logger.LogWarning("Change password failed for user {userId}.", await GetUserIdAsync(user));
+            Logger.Log("PasswordMismatch", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
             return IdentityResult.Failed(ErrorDescriber.PasswordMismatch());
         }
 
@@ -842,8 +839,7 @@ namespace Microsoft.AspNet.Identity
             var existingUser = await FindByLoginAsync(login.LoginProvider, login.ProviderKey);
             if (existingUser != null)
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "LoginAlreadyAssociated", new { userId = await GetUserIdAsync(user) });
-                //Logger.LogWarning("AddLogin for user {userId} failed because it was already assocated with another user.", await GetUserIdAsync(user));
+                Logger.Log("LoginAlreadyAssociated", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
                 return IdentityResult.Failed(ErrorDescriber.LoginAlreadyAssociated());
             }
             await loginStore.AddLoginAsync(user, login, CancellationToken);
@@ -1105,15 +1101,13 @@ namespace Microsoft.AspNet.Identity
 
         private async Task<IdentityResult> UserAlreadyInRoleError(TUser user, string role)
         {
-            Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "UserAlreadyInRole", new { userId = await GetUserIdAsync(user), role = role });
-            //Logger.LogWarning("User {userId} is already in role {role}.", await GetUserIdAsync(user), role);
+            Logger.Log("UserAlreadyInRole", LogLevel.Warning, new { userId = await GetUserIdAsync(user), role = role });
             return IdentityResult.Failed(ErrorDescriber.UserAlreadyInRole(role));
         }
 
         private async Task<IdentityResult> UserNotInRoleError(TUser user, string role)
         {
-            Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "UserNotInRole", new { userId = await GetUserIdAsync(user), role = role });
-            //Logger.LogWarning("User {userId} is not in role {role}.", await GetUserIdAsync(user), role);
+            Logger.Log("UserNotInRole", LogLevel.Warning, new { userId = await GetUserIdAsync(user), role = role });
             return IdentityResult.Failed(ErrorDescriber.UserNotInRole(role));
         }
 
@@ -1425,8 +1419,7 @@ namespace Microsoft.AspNet.Identity
 
             if (!await VerifyChangePhoneNumberTokenAsync(user, token, phoneNumber))
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "InvalidToken", new { userId = await GetUserIdAsync(user) });
-                //Logger.LogWarning("Change phone number for user {userId} failed with invalid token.", await GetUserIdAsync(user));
+                Logger.Log("InvalidToken", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
                 return IdentityResult.Failed(ErrorDescriber.InvalidToken());
             }
             await store.SetPhoneNumberAsync(user, phoneNumber, CancellationToken);
@@ -1494,8 +1487,7 @@ namespace Microsoft.AspNet.Identity
                     return true;
                 }
             }
-            Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "InvalidToken", new { userId = await GetUserIdAsync(user) });
-            //Logger.LogWarning("VerifyChangePhoneNumberTokenAsync() failed for user {userId}.", await GetUserIdAsync(user));
+            Logger.Log("InvalidToken", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
             return false;
         }
 
@@ -1532,8 +1524,7 @@ namespace Microsoft.AspNet.Identity
 
             if (!result)
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "InvalidToken", new { userId = await GetUserIdAsync(user), purpose = purpose });
-                //Logger.LogWarning("VerifyUserTokenAsync() failed with purpose: {purpose} for user {userId}.", purpose, await GetUserIdAsync(user));
+                Logger.Log("InvalidToken", LogLevel.Warning, new { userId = await GetUserIdAsync(user), purpose = purpose });
             }
             return result;
         }
@@ -1636,8 +1627,7 @@ namespace Microsoft.AspNet.Identity
             var result = await _tokenProviders[tokenProvider].ValidateAsync("TwoFactor", token, this, user);
             if (!result)
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "InvalidToken", new { userId = await GetUserIdAsync(user) });
-                //Logger.LogWarning($"{nameof(VerifyTwoFactorTokenAsync)}() failed for user {await GetUserIdAsync(user)}.");
+                Logger.Log("InvalidToken", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
             }
             return result;
         }
@@ -1810,8 +1800,7 @@ namespace Microsoft.AspNet.Identity
 
             if (!await store.GetLockoutEnabledAsync(user, CancellationToken))
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "LockoutFailed", new { userId = await GetUserIdAsync(user) });
-                //Logger.LogWarning("Lockout for user {userId} failed because lockout is not enabled for this user.", await GetUserIdAsync(user));
+                Logger.Log("LockoutFailed", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
                 return IdentityResult.Failed(ErrorDescriber.UserLockoutNotEnabled());
             }
             await store.SetLockoutEndDateAsync(user, lockoutEnd, CancellationToken);
@@ -1840,8 +1829,7 @@ namespace Microsoft.AspNet.Identity
             {
                 return await UpdateUserAsync(user);
             }
-            Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "LockedUser", new { userId = await GetUserIdAsync(user) });
-            //Logger.LogWarning("User {userId} is locked out.", await GetUserIdAsync(user));
+            Logger.Log("LockedUser", LogLevel.Warning, new { userId = await GetUserIdAsync(user) });
             await store.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.Add(Options.Lockout.DefaultLockoutTimeSpan),
                 CancellationToken);
             await store.ResetAccessFailedCountAsync(user, CancellationToken);
@@ -2077,8 +2065,7 @@ namespace Microsoft.AspNet.Identity
             }
             if (errors.Count > 0)
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "UserValidationFailure", new { userId = await GetUserIdAsync(user), errors = string.Join(";", errors.Select(e => e.Code)) });
-                //Logger.LogWarning("User {userId} validation failed: {errors}.", await GetUserIdAsync(user), string.Join(";", errors.Select(e => e.Code)));
+                Logger.Log("UserValidationFailure", LogLevel.Warning, new { userId = await GetUserIdAsync(user), errors = string.Join(";", errors.Select(e => e.Code)) });
                 return IdentityResult.Failed(errors.ToArray());
             }
             return IdentityResult.Success;
@@ -2097,8 +2084,7 @@ namespace Microsoft.AspNet.Identity
             }
             if (errors.Count > 0)
             {
-                Logger.Log(System.Diagnostics.Tracing.LogLevel.Warning, "PasswordValidationFailure", new { userId = await GetUserIdAsync(user), errors = string.Join(";", errors.Select(e => e.Code)) });
-                //Logger.LogWarning("User {userId} password validation failed: {errors}.", await GetUserIdAsync(user), string.Join(";", errors.Select(e => e.Code)));
+                Logger.Log("PasswordValidationFailure", LogLevel.Warning, new { userId = await GetUserIdAsync(user), errors = string.Join(";", errors.Select(e => e.Code)) });
                 return IdentityResult.Failed(errors.ToArray());
             }
             return IdentityResult.Success;
